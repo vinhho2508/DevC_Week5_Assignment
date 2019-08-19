@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from "react";
-
 import { StyleSheet } from 'react-native';
 import { ActivityIndicator, Text, View, FlatList, Linking } from "react-native";
 import moment from 'moment';
 import { Card, Button, Icon } from 'react-native-elements';
-
-
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -17,43 +14,6 @@ export default function App() {
   useEffect(() => {
     getNews();
   }, [articles]);
-
-  const onPress = url => {
-    Linking.canOpenURL(url).then(supported => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        console.log(`Don't know how to open URL: ${url}`);
-      }
-    });
-  };
-
-  const getNews = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `https://newsapi.org/v2/top-headlines?country=us&apiKey=75d804aa39ed4db39286875179fe523b&page=${pageNumber}`
-      );
-      const jsonData = await response.json();
-      const newArticleList = filterForUniqueArticles(
-        articles.concat(jsonData.articles)
-      );
-      setArticles(newArticleList);
-      console.log(newArticleList);
-      setPageNumber(pageNumber + 1);
-    } catch (error) {
-      setHasApiError(true);
-    }
-    setLoading(false);
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" loading={loading} />
-      </View>
-    );
-  }
 
   const filterForUniqueArticles = arr => {
     const cleaned = [];
@@ -68,7 +28,47 @@ export default function App() {
     return cleaned;
   };
 
-  if (lastPageReached) return;
+  const onPress = url => {
+    Linking.canOpenURL(url).then(supported => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        console.log(`Don't know how to open URL: ${url}`);
+      }
+    });
+  };
+
+  const getNews = async () => {
+    if (lastPageReached) return;
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `https://newsapi.org/v2/top-headlines?country=us&apiKey=75d804aa39ed4db39286875179fe523b&page=${pageNumber}`
+      );
+      const jsonData = await response.json();
+      const hasMoreArticles = jsonData.articles.length > 0;
+      if (hasMoreArticles) {
+        const newArticleList = filterForUniqueArticles(
+          articles.concat(jsonData.articles)
+        );
+        setArticles(newArticleList);
+        setPageNumber(pageNumber + 1);
+      } else {
+        setLastPageReached(true);
+      }
+    } catch (error) {
+      setHasApiError(true);
+    }
+    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" loading={loading} />
+      </View>
+    );
+  }
 
   if (hasErrored) {
     return (
@@ -109,7 +109,8 @@ export default function App() {
         keyExtractor={item => item.title}
         onEndReached={getNews}
         onEndReachedThreshold={1}
-        ListFooterComponent={<ActivityIndicator size="large" loading={loading} />} />
+        ListFooterComponent={lastPageReached ? <Text>No more articles</Text> : <ActivityIndicator size="large" loading={loading} />}
+      />
     </View>
   );
 }
